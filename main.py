@@ -12,15 +12,10 @@ import os
 import argparse
 from dotenv import load_dotenv
 
-# nlp = spacy.load("en_core_web_sm")
-# nlp.add_pipe("textrank")
-
 
 def get_excel_file_name(csv_file_path):
     """
     Generates an Excel file name based on the input CSV file name.
-    For example, if the input CSV file name is '/path/to/Moonsoft_new.csv',
-    the output Excel file name will be 'analysis_of_Moonsoft_new.xlsx'.
     """
     base_name = os.path.basename(csv_file_path) 
     name_without_ext = os.path.splitext(base_name)[0]  
@@ -61,40 +56,24 @@ def query_gpt_with_keywords(cleaned_keyphrases,url, excel_path,attempt=1):
         {"role": "system", "content": "You are a knowledgeable assistant who provides detailed analysis on keywords related to IT infrastructure observability and monitoring, including the integration of artificial intelligence."},
         {"role": "user", "content": prompt_text}
         ]
-    
-    # conversation = [
-    #     {"role": "system", "content": "You are a knowledgeable assistant who analyzes keywords and determines their related domain or area of work, focusing on IT infrastructure observability and monitoring and the integration of artificial intelligence."},
-    #     {"role": "user", "content": f"Analyze these keywords and determine the domain or area of work they are related to: {keywords_str}."}
-    # ]
-    
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
         messages=conversation
          )
         
     except openai.error.RateLimitError as e:
-        wait_time = 20  # Wait time in seconds; adjust as needed based on the specific rate limit error message
+        # gpt free plan limit is 20 sec so adding wait time, this will avoid rate limit
+        wait_time = 20 
         print(f"Rate limit reached, waiting for {wait_time} seconds before retrying...")
         time.sleep(wait_time)
         
-        # Retry the request if the attempt count is below a certain threshold (e.g., 3 attempts)
         if attempt <= 3:
             print(f"Retrying attempt {attempt + 1}...")
             query_gpt_with_keywords(cleaned_keyphrases, attempt + 1)
         else:
             print("Max retry attempts reached, moving to the next task.")
-    
-    # response = openai.Completion.create(
-    #     engine="gpt-3.5-turbo",  # or another version, depending on availability and needs
-    #    prompt=prompt,
-    #     temperature=0.5,
-    #     max_tokens=256,
-    #     top_p=1.0,
-    #     frequency_penalty=0.0,
-    #     presence_penalty=0.0
-    # )
+
     response_text = response['choices'][0]['message']['content']
-    # analysis_result = response.choices[0].text.strip()
     print(f"Analysis result for the keywords: {response_text}")
     lines = response_text.strip().split('\n')
     analysis_result = lines[0].replace('Analysis result for the keywords: Keywords:', '').strip()
@@ -134,7 +113,6 @@ def process_urls_from_csv(input_csv_path,excel_path,limit):
     prints the cleaned keyphrases (keywords) in the terminal,
     sends these keyphrases to GPT for analysis, and saves the results.
     """
-    # 
     urls_df = pd.read_csv(input_csv_path)
     limited_urls_df = urls_df.head(limit)
 
@@ -167,18 +145,19 @@ def get_page_content(url):
             print(f"Done Scrapping")
 
 
-# Step 3. Cleaning the text content from pages
-
+# Cleaning the text content from pages
 def text_cleaning(text):
+    """
+    Cleaning the text content from pages, by removing more than one line or spaces
+    """
     try:
-        # removing more than one newline or spaces
         text = re.sub(r'[\n\r]+', '\n', text)
     except:
         print(f"Failed to clean")
     return text
 
 
-# Step 4. Extracting Keyphrases from content
+#Extracting Keyphrases from content
 def get_top_n_keyphrases(text, top_n=25):
     # load a spaCy model, depending on language, scale, etc.
     nlp = spacy.load("en_core_web_sm")
@@ -196,33 +175,13 @@ def get_top_n_keyphrases(text, top_n=25):
 
 
 if __name__ == "__main__":
-    # Get Top Key phrases of a particular topic
-    # topic = 'Latest Mobiles In India'
-    # df = get_links_from_google(topic, num_results=5, lang='en')
-    # df['text'] = df['url'].apply(get_page_content)
-    # df['text'] = df['text'].apply(text_cleaning)
-    # results = get_top_n_keyphrases(''.join(df['text'].to_list()))
-    # results.to_csv(f'top_key_phrase_for_{topic}.csv', encoding='utf-8-sig')
-    # print('done')
-
-    # Get top Key phrases from competitor;s page
-    # url = 'https://www.entechreview.com/category/news/page/182/'
-    # text = get_page_content(url)
-    # text = text_cleaning(text)
-    # results_from_page = get_top_n_keyphrases(text, top_n=15)
-    # results_from_page.to_csv(f'top_key_phrase_for_competitors_page.csv', encoding='utf-8-sig')
     parser = argparse.ArgumentParser(description="Process URLs from a CSV file for GPT analysis.")
     parser.add_argument("--backlinks", type=str, required=True, help="Path to the input CSV file with URLs.")
     parser.add_argument("--limit", type=int, default=100, help="Limit on the number of URLs to process.")
-    # input_csv_path = "/Users/jerin.sr/Downloads/Moongsoft.csv"
-    # process_urls_from_csv(input_csv_path)
     args = parser.parse_args()
-
-    # excel_path = 'gpt_analysis.xlsx'
     excel_path = get_excel_file_name(args.backlinks)
     columns = ['URL', 'Analysis Result', 'Domain/Area']
     initialize_excel_file(excel_path, columns)
     process_urls_from_csv(args.backlinks, excel_path, args.limit)
-    # process_urls_from_csv(input_csv_path, excel_path)
 
     print('done')
