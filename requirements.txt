@@ -1,0 +1,8 @@
+beautifulsoup4==4.12.3
+googlesearch_python==1.2.3
+openai==0.28.0
+pandas==2.2.1
+pytextrank==3.3.0
+python-dotenv==1.0.1
+requests_html==0.10.0
+spacy==3.7.4
